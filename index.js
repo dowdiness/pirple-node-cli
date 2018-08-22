@@ -1,12 +1,14 @@
 var http = require('http')
 var url = require('url')
 var StringDecoder = require('string_decoder').StringDecoder
+var config = require('./config')
+
 var server = http.createServer(function (req, res) {
   var parsedUrl = url.parse(req.url, true)
-
   var path = parsedUrl.pathname
-
-  var method = req.method
+  var trimedPath = path.replace(/^\/+|\/+$/g, '')
+  var queryStringObject = parsedUrl.query
+  var method = req.method.toLowerCase()
   var headers = req.headers
   var decoder = new StringDecoder('utf-8')
   var buffer = ''
@@ -17,13 +19,50 @@ var server = http.createServer(function (req, res) {
 
   req.on('end', function () {
     buffer += decoder.end()
+    var choosenHandler = typeof (router[trimedPath]) !== 'undefined' ? router[trimedPath] : handlers.notFound
 
-    res.end('Hello world!\n')
+    var data = {
+      'trimedPath': trimedPath,
+      'queryStringObject': queryStringObject,
+      'method': method,
+      'headers': headers,
+      'payload': buffer
+    }
 
-    console.log('Path: ' + path + 'Method: ' + method + ' Headers: ' + headers + 'Payload: ' + buffer)
+    choosenHandler(data, function (statusCode, payload) {
+      statusCode = typeof (statusCode) === 'number' ? statusCode : '202'
+      payload = typeof (payload) === 'object' ? payload : {}
+
+      var payloadString = JSON.stringify(payload)
+      res.setHeader('Content-Type', 'application/json')
+      res.writeHead(statusCode)
+      res.end(payloadString)
+
+      console.log('Returning this response ', statusCode, payloadString)
+      console.log('Path: ' + trimedPath + ' Method: ' + method + ' Headers: ' + headers + ' Payload: ' + buffer)
+    })
   })
 })
 
-server.listen(3000, function () {
-  console.log('This server is listening on port 3000 now')
+server.listen(config.port, function () {
+  console.log('This server is listening on port ' + config.port + ' in ' + config.envName + 'mode')
 })
+
+var handlers = {}
+
+handlers.sample = function (data, callback) {
+  callback(406, {'name': 'sample handler'})
+}
+
+handlers.hello = function (data, callback) {
+  callback(406, {'name': 'Welcome to this Rest API'})
+}
+
+handlers.notFound = function (data, callback) {
+  callback(404)
+}
+
+var router = {
+  'sample': handlers.sample,
+  'hello': handlers.hello
+}
