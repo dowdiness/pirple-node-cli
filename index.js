@@ -1,9 +1,37 @@
 var http = require('http')
+var https = require('https')
 var url = require('url')
 var StringDecoder = require('string_decoder').StringDecoder
 var config = require('./config')
+var fs = require('fs')
+var _data = require('./lib/data')
 
-var server = http.createServer(function (req, res) {
+_data.delete('test', 'newFile', function(err){
+  console.log('this was the error', err)
+})
+
+var httpServer = http.createServer(function(req, res) {
+  unifiedServer(req, res)
+})
+
+httpServer.listen(config.httpPort, function () {
+  console.log('This server is listening on port ' + config.httpPort)
+})
+
+var httpsServerOptions = {
+  'key': fs.readFileSync('./https/key.pem'),
+  'cert': fs.readFileSync('./https/cert.pem')
+}
+
+var httpsServer = https.createServer(httpsServerOptions, function(req, res) {
+  unifiedServer(req, res)
+})
+
+httpsServer.listen(config.httpsPort, function () {
+  console.log('This server is listening on port ' + config.httpsPort)
+})
+
+var unifiedServer = function(req, res) {
   var parsedUrl = url.parse(req.url, true)
   var path = parsedUrl.pathname
   var trimedPath = path.replace(/^\/+|\/+$/g, '')
@@ -42,13 +70,13 @@ var server = http.createServer(function (req, res) {
       console.log('Path: ' + trimedPath + ' Method: ' + method + ' Headers: ' + headers + ' Payload: ' + buffer)
     })
   })
-})
-
-server.listen(config.port, function () {
-  console.log('This server is listening on port ' + config.port + ' in ' + config.envName + 'mode')
-})
+}
 
 var handlers = {}
+
+handlers.ping = function (data, callBack) {
+  callBack(200)
+}
 
 handlers.sample = function (data, callback) {
   callback(406, {'name': 'sample handler'})
@@ -64,5 +92,6 @@ handlers.notFound = function (data, callback) {
 
 var router = {
   'sample': handlers.sample,
-  'hello': handlers.hello
+  'hello': handlers.hello,
+  'ping': handlers.ping
 }
