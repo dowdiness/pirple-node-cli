@@ -2,13 +2,11 @@ var http = require('http')
 var https = require('https')
 var url = require('url')
 var StringDecoder = require('string_decoder').StringDecoder
-var config = require('./config')
+var config = require('./lib/config')
 var fs = require('fs')
 var _data = require('./lib/data')
-
-_data.delete('test', 'newFile', function(err){
-  console.log('this was the error', err)
-})
+var handlers = require('./lib/handlers')
+var helpers = require('./lib/helpers')
 
 var httpServer = http.createServer(function(req, res) {
   unifiedServer(req, res)
@@ -54,7 +52,7 @@ var unifiedServer = function(req, res) {
       'queryStringObject': queryStringObject,
       'method': method,
       'headers': headers,
-      'payload': buffer
+      'payload': helpers.perseJsonToObject(buffer)
     }
 
     choosenHandler(data, function (statusCode, payload) {
@@ -72,26 +70,7 @@ var unifiedServer = function(req, res) {
   })
 }
 
-var handlers = {}
-
-handlers.ping = function (data, callBack) {
-  callBack(200)
-}
-
-handlers.sample = function (data, callback) {
-  callback(406, {'name': 'sample handler'})
-}
-
-handlers.hello = function (data, callback) {
-  callback(406, {'name': 'Welcome to this Rest API'})
-}
-
-handlers.notFound = function (data, callback) {
-  callback(404)
-}
-
 var router = {
-  'sample': handlers.sample,
-  'hello': handlers.hello,
+  'users': handlers.users,
   'ping': handlers.ping
 }
